@@ -10,4 +10,3 @@ At the moment this will require local storage of the model to run, but future fe
 
 ### Planned model backend support
 * [Transformers](https://github.com/huggingface/transformers)
-  * Vicuna
