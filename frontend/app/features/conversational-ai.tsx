@@ -3,9 +3,43 @@ import {useEffect, useRef, useState} from "react";
 export default function ConversationalAi() {
     const[status, setStatus] = useState<Status>("idle");
     const[inputText, setInputText] = useState("");
+    const [history, setHistory] = useState<LLMMessage[]>([
+        {
+            role: 'assistant',
+            content:
+                'I am a conversational AI. Please select the LLM you would like to interact with and ask me anything',
+        },
+    ]);
+
+    async function handleSend() {
+        if (!inputText) {
+            return;
+        }
+
+        try {
+            setStatus('streaming');
+            const newHistory = [...history, {role: 'user', content: inputText}];
+            setHistory(newHistory);
+            setInputText("");
+            const { message } = await fetch('http://localhost:5000/generate-chat-hf', {
+                 method: 'POST',
+                 headers: {
+                     'Content-Type': 'application/json'},
+                 body: JSON.stringify({
+                     messages: newHistory,
+                 })
+             });
+            setHistory([...newHistory, message]);
+            setStatus("idle");
+        } catch (error: any) {
+            console.error(error);
+            window.alert('Something went wrong: ' + error.message);
+        }
+    }
+
     return (
         <div className="flex flex-col h-full max-h-[600px] overflow-y-hidden">
-            <ConversationLog messages={['Testing']}/>
+            <ConversationLog messages={history}/>
             <div className="w-full pb-4 flex px-4">
                 <ConversationInput
                     placeholder={getInputPlaceholder(status)}
@@ -16,7 +50,7 @@ export default function ConversationalAi() {
                 />
                 <button
                     className="p-2 border rounded bg-gray-100 hover:bg-gray-200 active:bg-gray-300 dark:bg-white dark:text-black font-medium ml-2"
-                    // onClick={handleSend}
+                    onClick={handleSend}
                 >
                     Send
                 </button>
@@ -25,6 +59,8 @@ export default function ConversationalAi() {
     );
 
 }
+
+
 
 type Status = "idle" | "streaming"
 
@@ -37,13 +73,19 @@ function getInputPlaceholder(status: Status){
     }
 }
 
+interface LLMMessage {
+    content: string;
+    role: string;
+}
+
 interface ConversationLogProps {
-    messages: string[];
+    messages: LLMMessage[];
 }
 
 function ConversationLog({messages}: ConversationLogProps) {
     let conversationWindow = useRef<Element | null>(null);
 
+    // Auto-scroll to bottom as new answers are generated
     useEffect(() => {
         if (conversationWindow?.current) {
             conversationWindow.current.scrollTop = conversationWindow.current.scrollHeight;
@@ -57,8 +99,11 @@ function ConversationLog({messages}: ConversationLogProps) {
         >
             {messages.map((message, idx) => (
                 <div className="my-4" key={idx}>
+                    <div className="font-semibold text-gray-800 dark:text-white">
+                        {capitalize(message.role)}
+                    </div>
                     <div className="text-gray-600 dark:text-gray-200 whitespace-pre-wrap mt-1">
-                        {message}
+                        {message.content}
                     </div>
                 </div>
             ))}
@@ -66,7 +111,11 @@ function ConversationLog({messages}: ConversationLogProps) {
     );
 }
 
-interface  ConversationInputProps {
+function capitalize(word: string) {
+    return word.charAt(0).toUpperCase() + word.substring(1);
+}
+
+interface ConversationInputProps {
     placeholder: string;
     text: string;
     setText: (text: string) => void;
