@@ -1,4 +1,5 @@
 import logging
+import torch
 
 # from modules.augmented_logging import logger
 
@@ -13,5 +14,9 @@ def load_model(model_name, loader=None):
 
 
 def huggingface_loader(path_to_model='..\\models\lmsys_vicuna-7b-v1.5'):
-    pipe = pipeline('text-generation', model=Path(path_to_model))
+    pipe = pipeline(
+        'text-generation',
+        model=Path(path_to_model),
+        torch_dtype=torch.bfloat16,
+        device=0)
     return pipe

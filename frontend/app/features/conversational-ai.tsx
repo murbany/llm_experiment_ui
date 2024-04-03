@@ -11,6 +11,31 @@ export default function ConversationalAi() {
         },
     ]);
 
+    async function handleExport() {
+        try {
+            const response = await fetch('http://localhost:5000/export-csv', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    messages: history,
+                })
+            });
+            const message = await response.json()
+            console.log(message.csv);
+            const blob = new Blob([message.csv], {type: 'text/csv'});
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.setAttribute('href', url)
+            a.setAttribute('download', 'history.csv');
+            a.click();
+            a.remove();
+        } catch (error: any) {
+            console.error(error);
+            window.alert('Something went wrong: ' + error.message);
+        }
+    }
+
     async function handleSend() {
         if (!inputText) {
             return;
@@ -21,7 +46,7 @@ export default function ConversationalAi() {
             const newHistory = [...history, {role: 'user', content: inputText}];
             setHistory(newHistory);
             setInputText("");
-            const { message } = await fetch('http://localhost:5000/generate-chat-hf', {
+            const response = await fetch('http://localhost:5000/generate-chat-hf', {
                  method: 'POST',
                  headers: {
                      'Content-Type': 'application/json'},
@@ -29,6 +54,7 @@ export default function ConversationalAi() {
                      messages: newHistory,
                  })
              });
+            const message = await response.json()
             setHistory([...newHistory, message]);
             setStatus("idle");
         } catch (error: any) {
@@ -45,7 +71,7 @@ export default function ConversationalAi() {
                     placeholder={getInputPlaceholder(status)}
                     text={inputText}
                     setText={setInputText}
-                    // sendMessage={handleSend}
+                    sendMessage={handleSend}
                     disabled={status !== 'idle'}
                 />
                 <button
@@ -54,6 +80,12 @@ export default function ConversationalAi() {
                 >
                     Send
                 </button>
+                <button
+                    className="p-2 border rounded bg-gray-100 hover:bg-gray-200 active:bg-gray-300 dark:bg-white dark:text-black font-medium ml-2"
+                    onClick={handleExport}
+                >
+                    Export Conversation
+                </button>
             </div>
         </div>
     );
@@ -61,11 +93,10 @@ export default function ConversationalAi() {
 }
 
 
-
 type Status = "idle" | "streaming"
 
-function getInputPlaceholder(status: Status){
-    switch(status) {
+function getInputPlaceholder(status: Status) {
+    switch (status) {
         case "idle":
             return "Ask me anything...";
         case "streaming":
@@ -127,7 +158,7 @@ function ConversationInput({
    placeholder,
    text,
    setText,
-   // sendMessage,
+   sendMessage,
    disabled,
 }: ConversationInputProps) {
     return (
